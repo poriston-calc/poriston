@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#1a3a5c" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Poriston" />
+  <title>Poriston Калькулятор</title>
+
+  <!-- PWA manifest inline -->
+  <script>
+    const manifestData = {
+      name: "Poriston Калькулятор",
+      short_name: "Poriston",
+      description: "Калькулятор газобетонних блоків Poriston",
+      start_url: "./",
+      display: "standalone",
+      background_color: "#f0f4f8",
+      theme_color: "#1a3a5c",
+      orientation: "portrait",
+      icons: [
+        { src: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'%3E%3Crect width='192' height='192' rx='32' fill='%231a3a5c'/%3E%3Ctext x='96' y='130' font-size='110' text-anchor='middle' fill='white'%3E🧱%3C/text%3E%3C/svg%3E", sizes: "192x192", type: "image/svg+xml" },
+        { src: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='80' fill='%231a3a5c'/%3E%3Ctext x='256' y='350' font-size='300' text-anchor='middle' fill='white'%3E🧱%3C/text%3E%3C/svg%3E", sizes: "512x512", type: "image/svg+xml" }
+      ]
+    };
+    const blob = new Blob([JSON.stringify(manifestData)], {type: 'application/json'});
+    const manifestURL = URL.createObjectURL(blob);
+    document.addEventListener('DOMContentLoaded', () => {
+      const link = document.createElement('link');
+      link.rel = 'manifest'; link.href = manifestURL;
+      document.head.appendChild(link);
+    });
+  </script>
+
+  <!-- React + Babel from CDN -->
+  <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+  <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: #f0f4f8; font-family: 'Segoe UI', Arial, sans-serif; -webkit-tap-highlight-color: transparent; }
+    select, input, button { font-family: inherit; }
+    /* Safe area for notched phones */
+    #root { padding-bottom: env(safe-area-inset-bottom); }
+  </style>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel">
+const { useState, useMemo, useEffect } = React;
+
+// ── Data ──────────────────────────────────────────────────────────────────────
+const BLOCKS = [
+  { type:"D300", width:300, height:200, length:610, m3perPallet:2.196, pcsPerPallet:60 },
+  { type:"D300", width:375, height:200, length:610, m3perPallet:2.288, pcsPerPallet:50 },
+  { type:"D300", width:400, height:200, length:610, m3perPallet:1.952, pcsPerPallet:40 },
+  { type:"D300", width:500, height:200, length:610, m3perPallet:2.44,  pcsPerPallet:40 },
+  { type:"D400", width:75,  height:200, length:610, m3perPallet:2.196, pcsPerPallet:240 },
+  { type:"D400", width:100, height:200, length:610, m3perPallet:2.196, pcsPerPallet:180 },
+  { type:"D400", width:125, height:200, length:610, m3perPallet:2.288, pcsPerPallet:150 },
+  { type:"D400", width:200, height:200, length:610, m3perPallet:1.952, pcsPerPallet:80  },
+  { type:"D400", width:250, height:200, length:610, m3perPallet:2.135, pcsPerPallet:70  },
+  { type:"D400", width:280, height:200, length:610, m3perPallet:2.05,  pcsPerPallet:60  },
+  { type:"D400", width:300, height:200, length:610, m3perPallet:2.196, pcsPerPallet:60  },
+  { type:"D400", width:375, height:200, length:610, m3perPallet:2.288, pcsPerPallet:50  },
+  { type:"D400", width:400, height:200, length:610, m3perPallet:1.952, pcsPerPallet:40  },
+  { type:"D400", width:500, height:200, length:610, m3perPallet:2.44,  pcsPerPallet:40  },
+  { type:"D500", width:50,  height:200, length:610, m3perPallet:2.196, pcsPerPallet:300 },
+  { type:"D500", width:75,  height:200, length:610, m3perPallet:2.196, pcsPerPallet:240 },
+  { type:"D500", width:100, height:200, length:610, m3perPallet:2.196, pcsPerPallet:180 },
+  { type:"D500", width:150, height:200, length:610, m3perPallet:2.196, pcsPerPallet:120 },
+  { type:"D500", width:200, height:200, length:610, m3perPallet:1.952, pcsPerPallet:80  },
+  { type:"D500", width:250, height:200, length:610, m3perPallet:2.135, pcsPerPallet:70  },
+  { type:"D500", width:300, height:200, length:610, m3perPallet:2.196, pcsPerPallet:60  },
+];
+const U_BLOCKS = [
+  { width:200, height:200, length:500, price:190, wholesalePrice:160 },
+  { width:250, height:200, length:500, price:190, wholesalePrice:160 },
+  { width:300, height:200, length:500, price:200, wholesalePrice:170 },
+  { width:375, height:200, length:500, price:240, wholesalePrice:210 },
+  { width:400, height:200, length:500, price:250, wholesalePrice:220 },
+  { width:500, height:200, length:500, price:300, wholesalePrice:270 },
+  { width:200, height:250, length:500, price:190, wholesalePrice:160 },
+  { width:300, height:250, length:500, price:220, wholesalePrice:190 },
+];
+const ADHESIVES = [
+  { id:"shpaten", name:"Клей для піно- газоблоків SHPATEN BLOCK 25 кг/мішок", retailPrice:148, wholesalePrice:140 },
+  { id:"white",   name:"Білий теплий клей для кладки газобетону",              retailPrice:178, wholesalePrice:170 },
+];
+const RETAIL_PRICE    = { D300:3180, D400:3280, D500:3280 };
+const WHOLESALE_PRICE = { D300:3080, D400:3180, D500:3180 };
+const BLOCK_TYPES      = ["D300","D400","D500"];
+const MAIN_WIDTHS      = [200,250,280,300,375,400,500];
+const PARTITION_WIDTHS = [50,75,100,125,150];
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function fmt(n){ return Math.round(n).toLocaleString("uk-UA"); }
+function declPallet(n){const a=Math.abs(n),m10=a%10,m100=a%100;if(m100>=11&&m100<=14)return"піддонів";if(m10===1)return"піддон";if(m10>=2&&m10<=4)return"піддони";return"піддонів";}
+function declBag(n){const a=Math.abs(n),m10=a%10,m100=a%100;if(m100>=11&&m100<=14)return"мішків";if(m10===1)return"мішок";if(m10>=2&&m10<=4)return"мішки";return"мішків";}
+function roundPallets(r){return Math.round(r);}
+function resolvePrice(customStr,defaultPrice){const v=parseFloat(customStr);return(!isNaN(v)&&v>0)?v:defaultPrice;}
+function roundTo10(n){const units=Math.round(n)%10;const base=Math.round(n)-units;return units>=8?base+10:base;}
+function fbCopy(text){const ta=document.createElement("textarea");ta.value=text;ta.style.cssText="position:fixed;opacity:0;top:0;left:0";document.body.appendChild(ta);ta.focus();ta.select();try{document.execCommand("copy");}catch{}document.body.removeChild(ta);}
+function doCopyText(text,setCopied){const done=()=>{setCopied(true);setTimeout(()=>setCopied(false),2000);};if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(text).then(done).catch(()=>{fbCopy(text);done();});}else{fbCopy(text);done();}}
+
+// ── localStorage persistence (no server needed) ───────────────────────────────
+const LS_KEY = "poriston_history_v1";
+function loadHistory(){try{const v=localStorage.getItem(LS_KEY);return v?JSON.parse(v):[];}catch{return [];}}
+function persistHistory(h){try{localStorage.setItem(LS_KEY,JSON.stringify(h));}catch{}}
+
+// ── Main App ──────────────────────────────────────────────────────────────────
+function App() {
+  const [vc1,setVc1] = useState({width:"300",m3input:"35"});
+  const [vc2,setVc2] = useState({width:"100",m3input:"4"});
+  const [b1,setB1]   = useState({enabled:true, type:"D400",width:"300",customRetail:"",customWholesale:""});
+  const [b2,setB2]   = useState({enabled:false,type:"D500",width:"100",customRetail:"",customWholesale:""});
+  const [ub,setUb]   = useState({enabled:false,width:"300",height:"200",qty:"10",customRetail:"",customWholesale:""});
+  const [adh,setAdh] = useState({enabled:false,adhesiveId:"shpaten",customRetail:"",customWholesale:""});
+  const [adhQtyOverride,setAdhQtyOverride] = useState("");
+  const [deliveryCity,setDeliveryCity] = useState("Березань - Троєщина");
+  const [deliveryCost,setDeliveryCost] = useState("17500");
+  const [deliveryType,setDeliveryType] = useState("маніпулятор");
+  const [history,setHistory]   = useState(()=>loadHistory());
+  const [saved0,setSaved0]     = useState(false);
+  const [saved1,setSaved1]     = useState(false);
+  const [saved2,setSaved2]     = useState(false);
+  const [copied0,setCopied0]   = useState(false);
+  const [copied1,setCopied1]   = useState(false);
+  const [copied2,setCopied2]   = useState(false);
+  const [copied3,setCopied3]   = useState(false);
+  const [copied4,setCopied4]   = useState(false);
+  const [clearConfirm,setClearConfirm] = useState(false);
+
+  const saveHistory = (next)=>{ setHistory(next); persistHistory(next); };
+
+  // VC1
+  const vc1Block   = BLOCKS.find(b=>b.type===b1.type&&b.width===Number(vc1.width));
+  const vc1M3Input = parseFloat(vc1.m3input)||0;
+  const vc1Pallets = roundPallets(vc1Block&&vc1M3Input>0?vc1M3Input/vc1Block.m3perPallet:0);
+  const vc1ExactM3 = vc1Block&&vc1Pallets>0?+(vc1Block.m3perPallet*vc1Pallets).toFixed(3):0;
+  // VC2
+  const vc2Block   = BLOCKS.find(b=>b.type===b2.type&&b.width===Number(vc2.width));
+  const vc2M3Input = parseFloat(vc2.m3input)||0;
+  const vc2Pallets = roundPallets(vc2Block&&vc2M3Input>0?vc2M3Input/vc2Block.m3perPallet:0);
+  const vc2ExactM3 = vc2Block&&vc2Pallets>0?+(vc2Block.m3perPallet*vc2Pallets).toFixed(3):0;
+  // Block 1
+  const b1Widths   = useMemo(()=>[...new Set(BLOCKS.filter(b=>b.type===b1.type).map(b=>b.width))].sort((a,b)=>a-b),[b1.type]);
+  const b1SafeW    = b1Widths.includes(Number(b1.width))?b1.width:String(b1Widths[0]??"");
+  const b1Block    = BLOCKS.find(b=>b.type===b1.type&&b.width===Number(b1SafeW));
+  const b1Retail   = resolvePrice(b1.customRetail,   RETAIL_PRICE[b1.type]);
+  const b1Wholesale= resolvePrice(b1.customWholesale,WHOLESALE_PRICE[b1.type]);
+  const b1M3=vc1ExactM3, b1Pallets=vc1Pallets;
+  // Block 2
+  const b2Widths   = useMemo(()=>[...new Set(BLOCKS.filter(b=>b.type===b2.type).map(b=>b.width))].sort((a,b)=>a-b),[b2.type]);
+  const b2SafeW    = b2Widths.includes(Number(b2.width))?b2.width:String(b2Widths[0]??"");
+  const b2Block    = BLOCKS.find(b=>b.type===b2.type&&b.width===Number(b2SafeW));
+  const b2Retail   = resolvePrice(b2.customRetail,   RETAIL_PRICE[b2.type]);
+  const b2Wholesale= resolvePrice(b2.customWholesale,WHOLESALE_PRICE[b2.type]);
+  const b2M3=vc2ExactM3, b2Pallets=vc2Pallets;
+  // U-block
+  const ubUniqueHeights=[...new Set(U_BLOCKS.map(b=>b.height))].sort((a,b)=>a-b);
+  const ubWidthsForH=[...new Set(U_BLOCKS.filter(b=>String(b.height)===ub.height).map(b=>b.width))].sort((a,b)=>a-b);
+  const ubBlock=U_BLOCKS.find(b=>String(b.width)===ub.width&&String(b.height)===ub.height);
+  const ubQty=parseFloat(ub.qty)||0;
+  const ubRetail   =resolvePrice(ub.customRetail,   ubBlock?.price??0);
+  const ubWholesale=resolvePrice(ub.customWholesale,ubBlock?.wholesalePrice??0);
+  // Adhesive
+  const adhObj=ADHESIVES.find(a=>a.id===adh.adhesiveId)||ADHESIVES[0];
+  const totalBlockM3=(b1.enabled?b1M3:0)+(b2.enabled?b2M3:0);
+  const adhQtyAuto=totalBlockM3>0?Math.ceil(totalBlockM3):0;
+  const adhQty=adhQtyOverride!==""?(parseFloat(adhQtyOverride)||0):adhQtyAuto;
+  const adhRetail   =resolvePrice(adh.customRetail,   adhObj.retailPrice);
+  const adhWholesale=resolvePrice(adh.customWholesale,adhObj.wholesalePrice);
+  // Delivery
+  const deliveryCostNum=parseFloat(deliveryCost)||0;
+  // Costs
+  const fullRetailBlockCost=(b1.enabled&&b1Block?b1Retail*b1M3:0)+(b2.enabled&&b2Block?b2Retail*b2M3:0)+(ub.enabled&&ubBlock?ubRetail*ubQty:0);
+  const fullTotal=fullRetailBlockCost+(adh.enabled?adhRetail*adhQty:0)+deliveryCostNum;
+  const fullTotalRounded=roundTo10(fullTotal);
+  const wholesaleBlockCost=(b1.enabled&&b1Block?b1Wholesale*b1M3:0)+(b2.enabled&&b2Block?b2Wholesale*b2M3:0)+(ub.enabled&&ubBlock?ubWholesale*ubQty:0);
+  const adhWholesaleCost=adh.enabled?adhWholesale*adhQty:0;
+  const adhDeliveryTotal=adhWholesaleCost+deliveryCostNum;
+  const toDealer=Math.round(fullTotalRounded)-Math.round(adhDeliveryTotal);
+  const earned=toDealer-Math.round(wholesaleBlockCost);
+  const hasBlocks=(b1.enabled&&b1Pallets>0)||(b2.enabled&&b2Pallets>0)||(ub.enabled&&ubQty>0);
+  const hasAdhOrDel=(adh.enabled&&adhQty>0)||deliveryCostNum>0;
+  const hasAnyItem=b1.enabled||b2.enabled||ub.enabled||adh.enabled;
+
+  // lastSaved & histToDealer
+  const lastSaved=(()=>{
+    const f=history.filter(h=>h.label==="full"),bl=history.filter(h=>h.label==="block"),ad=history.filter(h=>h.label==="adh");
+    return{full:f.length?f[f.length-1]:null,block:bl.length?bl[bl.length-1]:null,adh:ad.length?ad[ad.length-1]:null};
+  })();
+  const histToDealer=(lastSaved.full&&lastSaved.adh)?lastSaved.full.amount-lastSaved.adh.amount:toDealer;
+
+  // Text builders
+  const buildFullText=()=>{
+    const L=[];L.push("Виробник Poriston (Aeroc)");L.push("");L.push(deliveryCity);L.push("");
+    let n=1;
+    if(b1.enabled&&b1Block&&b1Pallets>0){L.push(`${n}). ${b1Block.width}x${b1Block.height}x${b1Block.length} мм ${b1.type} - ${b1M3} м³ або ${b1Pallets} ${declPallet(b1Pallets)}`);L.push(`- Ціна газобетонного блоку - ${fmt(b1Retail)} грн/м³`);n++;}
+    if(b2.enabled&&b2Block&&b2Pallets>0){L.push(`${n}). ${b2Block.width}x${b2Block.height}x${b2Block.length} мм ${b2.type} - ${b2M3} м³ або ${b2Pallets} ${declPallet(b2Pallets)}`);L.push(`- Ціна газобетонного блоку - ${fmt(b2Retail)} грн/м³`);n++;}
+    if(ub.enabled&&ubBlock&&ubQty>0){L.push(`${n}). U-блок ${ubBlock.width}x${ubBlock.height}x${ubBlock.length} мм - ${ubQty} шт`);L.push(`- Ціна U-блоку - ${fmt(ubRetail)} грн/шт`);n++;}
+    if(adh.enabled&&adhQty>0){L.push(`${n}). ${adhObj.name} - ${adhQty} ${declBag(adhQty)}`);L.push(`- Ціна - ${fmt(adhRetail)} грн/мішок`);}
+    L.push(`Доставка - ${fmt(deliveryCostNum)} грн/рейс (${deliveryType})`);L.push("");L.push(`Разом до оплати: ${fmt(fullTotalRounded)} грн.`);
+    return L.join("\n");
+  };
+  const buildBlockText=()=>{
+    const L=[];L.push(deliveryCity);L.push("");let n=1;
+    if(b1.enabled&&b1Block&&b1Pallets>0){L.push(`${n}). ${b1Block.width}x${b1Block.height}x${b1Block.length} мм ${b1.type} - ${b1M3} м³ або ${b1Pallets} ${declPallet(b1Pallets)}`);L.push(`- Ціна газобетонного блоку - ${fmt(b1Wholesale)} грн/м³`);n++;}
+    if(b2.enabled&&b2Block&&b2Pallets>0){L.push(`${n}). ${b2Block.width}x${b2Block.height}x${b2Block.length} мм ${b2.type} - ${b2M3} м³ або ${b2Pallets} ${declPallet(b2Pallets)}`);L.push(`- Ціна газобетонного блоку - ${fmt(b2Wholesale)} грн/м³`);n++;}
+    if(ub.enabled&&ubBlock&&ubQty>0){L.push(`${n}). U-блок ${ubBlock.width}x${ubBlock.height}x${ubBlock.length} мм - ${ubQty} шт`);L.push(`- Ціна U-блоку - ${fmt(ubWholesale)} грн/шт`);}
+    L.push("");L.push(`Разом до оплати: ${fmt(wholesaleBlockCost)} грн.`);
+    return L.join("\n");
+  };
+  const buildAdhText=()=>{
+    const L=[];L.push(deliveryCity);L.push("");
+    if(adh.enabled&&adhQty>0){const s=Math.round(adhWholesale*adhQty);L.push(`${adhObj.name} - ${adhQty} ${declBag(adhQty)}`);L.push(`- Ціна - ${fmt(adhWholesale)} грн/мішок. Сума за клей: ${fmt(s)} грн`);}
+    L.push(`Доставка - ${fmt(deliveryCostNum)} грн/рейс (${deliveryType})`);L.push("");L.push(`Разом до оплати: ${fmt(adhDeliveryTotal)} грн.`);
+    return L.join("\n");
+  };
+  const buildDealerText=()=>{
+    const L=[];L.push(deliveryCity);L.push("");let n=1;
+    if(b1.enabled&&b1Block&&b1Pallets>0){L.push(`${n}). ${b1Block.width}x${b1Block.height}x${b1Block.length} мм ${b1.type} - ${b1M3} м³ або ${b1Pallets} ${declPallet(b1Pallets)}`);n++;}
+    if(b2.enabled&&b2Block&&b2Pallets>0){L.push(`${n}). ${b2Block.width}x${b2Block.height}x${b2Block.length} мм ${b2.type} - ${b2M3} м³ або ${b2Pallets} ${declPallet(b2Pallets)}`);n++;}
+    if(ub.enabled&&ubBlock&&ubQty>0){L.push(`${n}). U-блок ${ubBlock.width}x${ubBlock.height}x${ubBlock.length} мм - ${ubQty} шт`);}
+    L.push("");L.push(`Разом до оплати: ${fmt(histToDealer)} грн.`);
+    return L.join("\n");
+  };
+  const buildCarrierText=()=>{
+    const L=[];L.push(deliveryCity);L.push("");
+    if(adh.enabled&&adhQty>0){const s=Math.round(adhWholesale*adhQty);L.push(`${adhObj.name} - ${adhQty} ${declBag(adhQty)}`);L.push(`- Ціна - ${fmt(adhWholesale)} грн/мішок. Сума за клей: ${fmt(s)} грн`);}
+    L.push(`Доставка - ${fmt(deliveryCostNum)} грн/рейс (${deliveryType})`);L.push("");L.push(`Разом до оплати: ${fmt(adhDeliveryTotal)} грн.`);L.push("");L.push(`Саші віддати: ${fmt(histToDealer)} грн.`);
+    return L.join("\n");
+  };
+  const fullText=buildFullText(),blockText=buildBlockText(),adhText=buildAdhText(),dealerText=buildDealerText(),carrierText=buildCarrierText();
+
+  const timestamp=()=>new Date().toLocaleString("uk-UA",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"});
+  const doSave=async(label,text,amount,setSaved)=>{const e={id:Date.now(),ts:timestamp(),label,text,amount};saveHistory([...history,e]);setSaved(true);setTimeout(()=>setSaved(false),2000);};
+
+  const updateB1Type=(val)=>setB1(p=>({...p,type:val,customRetail:"",customWholesale:""}));
+  const updateB2Type=(val)=>setB2(p=>({...p,type:val,customRetail:"",customWholesale:""}));
+  const updateUbHeight=(val)=>{const ws=[...new Set(U_BLOCKS.filter(b=>String(b.height)===val).map(b=>b.width))].sort((a,b)=>a-b);setUb(p=>({...p,height:val,width:ws.includes(Number(p.width))?p.width:String(ws[0]??"")}));};
+
+  const S=styles;
+  return (
+    <div style={S.page}>
+      <div style={S.card}>
+
+        {/* Header */}
+        <div style={S.header}>
+          <div style={S.headerLabel}>Калькулятор</div>
+          <div style={S.headerTitle}>Газобетонні блоки Poriston</div>
+          <div style={S.headerSub}>Завод Березань · Роздріб / Опт / Доставка</div>
+        </div>
+
+        <div style={S.form}>
+          {/* VC1 */}
+          <VcBox title="Розрахунок об'єму — основний блок" widths={MAIN_WIDTHS} width={vc1.width} onWidth={v=>setVc1(p=>({...p,width:v}))} m3input={vc1.m3input} onM3={v=>setVc1(p=>({...p,m3input:v}))} m3perPallet={vc1Block?.m3perPallet} pallets={vc1Pallets} exactM3={vc1ExactM3} />
+          <Divider />
+          {/* Block 1 */}
+          <SectionHeader title="Блок основний" tag="1" enabled={b1.enabled} onToggle={v=>setB1(p=>({...p,enabled:v}))} alwaysOn />
+          {b1.enabled && (<div style={S.sb}>
+            <TwoCol>
+              <Row label="Тип блоку"><Select value={b1.type} onChange={updateB1Type} options={BLOCK_TYPES.map(t=>({value:t,label:t}))} /></Row>
+              <Row label="Ширина (мм)"><Select value={b1SafeW} onChange={v=>setB1(p=>({...p,width:v}))} options={b1Widths.map(w=>({value:String(w),label:`${w} мм`}))} /></Row>
+            </TwoCol>
+            <div style={S.priceInfoRow}><span>Роздріб: <strong>{fmt(RETAIL_PRICE[b1.type])} грн/м³</strong></span><span>Опт: <strong>{fmt(WHOLESALE_PRICE[b1.type])} грн/м³</strong></span></div>
+            <TwoCol>
+              <Row label="Своя роздрібна"><PriceOverride value={b1.customRetail} onChange={v=>setB1(p=>({...p,customRetail:v}))} placeholder={fmt(RETAIL_PRICE[b1.type])} /></Row>
+              <Row label="Своя оптова"><PriceOverride value={b1.customWholesale} onChange={v=>setB1(p=>({...p,customWholesale:v}))} placeholder={fmt(WHOLESALE_PRICE[b1.type])} /></Row>
+            </TwoCol>
+            {b1Block&&b1Pallets>0&&<CalcHint>{b1Pallets} {declPallet(b1Pallets)} × {b1Block.m3perPallet} м³ = <strong>{b1M3} м³</strong></CalcHint>}
+          </div>)}
+          <Divider />
+          {/* VC2 */}
+          {b2.enabled&&(<VcBox title="Розрахунок об'єму — перегородка" widths={PARTITION_WIDTHS} width={vc2.width} onWidth={v=>setVc2(p=>({...p,width:v}))} m3input={vc2.m3input} onM3={v=>setVc2(p=>({...p,m3input:v}))} m3perPallet={vc2Block?.m3perPallet} pallets={vc2Pallets} exactM3={vc2ExactM3} />)}
+          {/* Block 2 */}
+          <SectionHeader title="Блок перегородковий" tag="2" enabled={b2.enabled} onToggle={v=>setB2(p=>({...p,enabled:v}))} />
+          {b2.enabled&&(<div style={S.sb}>
+            <TwoCol>
+              <Row label="Тип блоку"><Select value={b2.type} onChange={updateB2Type} options={BLOCK_TYPES.map(t=>({value:t,label:t}))} /></Row>
+              <Row label="Ширина (мм)"><Select value={b2SafeW} onChange={v=>setB2(p=>({...p,width:v}))} options={b2Widths.map(w=>({value:String(w),label:`${w} мм`}))} /></Row>
+            </TwoCol>
+            <div style={S.priceInfoRow}><span>Роздріб: <strong>{fmt(RETAIL_PRICE[b2.type])} грн/м³</strong></span><span>Опт: <strong>{fmt(WHOLESALE_PRICE[b2.type])} грн/м³</strong></span></div>
+            <TwoCol>
+              <Row label="Своя роздрібна"><PriceOverride value={b2.customRetail} onChange={v=>setB2(p=>({...p,customRetail:v}))} placeholder={fmt(RETAIL_PRICE[b2.type])} /></Row>
+              <Row label="Своя оптова"><PriceOverride value={b2.customWholesale} onChange={v=>setB2(p=>({...p,customWholesale:v}))} placeholder={fmt(WHOLESALE_PRICE[b2.type])} /></Row>
+            </TwoCol>
+            {b2Block&&b2Pallets>0&&<CalcHint>{b2Pallets} {declPallet(b2Pallets)} × {b2Block.m3perPallet} м³ = <strong>{b2M3} м³</strong></CalcHint>}
+          </div>)}
+          <Divider />
+          {/* U-blocks */}
+          <SectionHeader title="U-блоки" tag="3" enabled={ub.enabled} onToggle={v=>setUb(p=>({...p,enabled:v}))} />
+          {ub.enabled&&(<div style={S.sb}>
+            <TwoCol>
+              <Row label="Висота (мм)"><Select value={ub.height} onChange={updateUbHeight} options={ubUniqueHeights.map(h=>({value:String(h),label:`${h} мм`}))} /></Row>
+              <Row label="Ширина (мм)"><Select value={ub.width} onChange={v=>setUb(p=>({...p,width:v}))} options={ubWidthsForH.map(w=>({value:String(w),label:`${w} мм`}))} /></Row>
+            </TwoCol>
+            {ubBlock&&(<div style={S.priceInfoRow}><span>Роздріб: <strong>{fmt(ubBlock.price)} грн/шт</strong></span><span>Опт: <strong>{fmt(ubBlock.wholesalePrice)} грн/шт</strong></span></div>)}
+            <TwoCol>
+              <Row label="Своя роздрібна"><PriceOverride value={ub.customRetail} onChange={v=>setUb(p=>({...p,customRetail:v}))} placeholder={ubBlock?fmt(ubBlock.price):""} /></Row>
+              <Row label="Своя оптова"><PriceOverride value={ub.customWholesale} onChange={v=>setUb(p=>({...p,customWholesale:v}))} placeholder={ubBlock?fmt(ubBlock.wholesalePrice):""} /></Row>
+            </TwoCol>
+            <Row label="Кількість (шт)"><NumberInput value={ub.qty} onChange={v=>setUb(p=>({...p,qty:v}))} min={1} step={1} suffix="шт" /></Row>
+          </div>)}
+          <Divider />
+          {/* Adhesive */}
+          <SectionHeader title="Клей для кладки" tag="4" enabled={adh.enabled} onToggle={v=>setAdh(p=>({...p,enabled:v}))} />
+          {adh.enabled&&(<div style={S.sb}>
+            <Row label="Вид клею"><Select value={adh.adhesiveId} onChange={v=>setAdh(p=>({...p,adhesiveId:v,customRetail:"",customWholesale:""}))} options={ADHESIVES.map(a=>({value:a.id,label:a.name}))} /></Row>
+            <div style={S.priceInfoRow}><span>Роздріб: <strong>{adhObj.retailPrice} грн/міш.</strong></span><span>Опт: <strong>{adhObj.wholesalePrice} грн/міш.</strong></span></div>
+            <TwoCol>
+              <Row label="Своя роздрібна"><PriceOverride value={adh.customRetail} onChange={v=>setAdh(p=>({...p,customRetail:v}))} placeholder={String(adhObj.retailPrice)} /></Row>
+              <Row label="Своя оптова"><PriceOverride value={adh.customWholesale} onChange={v=>setAdh(p=>({...p,customWholesale:v}))} placeholder={String(adhObj.wholesalePrice)} /></Row>
+            </TwoCol>
+            <Row label="Кількість мішків">
+              <div style={{display:"flex",alignItems:"center",gap:6}}>
+                <input type="number" value={adhQtyOverride!==""?adhQtyOverride:adhQtyAuto} min={0} step={1} onChange={e=>setAdhQtyOverride(e.target.value)} style={{...S.input,flex:1}} />
+                <span style={{fontSize:12,color:"#6b7280",whiteSpace:"nowrap"}}>міш.</span>
+                {adhQtyOverride!==""&&<button onClick={()=>setAdhQtyOverride("")} style={{padding:"4px 7px",fontSize:11,borderRadius:5,border:"1px solid #d1d5db",background:"#f3f4f6",cursor:"pointer"}}>↺</button>}
+              </div>
+              <div style={{fontSize:11,color:"#9ca3af",marginTop:3}}>{adhQtyOverride!==""?`Авто: ${adhQtyAuto} міш.`:"Авто (1 м³ = 1 мішок)"}</div>
+            </Row>
+          </div>)}
+          <Divider />
+          {/* Delivery */}
+          <div style={{paddingTop:2}}>
+            <div style={S.sectionTitle}>Доставка</div>
+            <div style={S.sb}>
+              <Row label="Місто / напрямок"><TextInput value={deliveryCity} onChange={setDeliveryCity} placeholder="напр. Березань - Троєщина" /></Row>
+              <TwoCol>
+                <Row label="Тип транспорту"><TextInput value={deliveryType} onChange={setDeliveryType} placeholder="маніпулятор" /></Row>
+                <Row label="Вартість (грн)"><NumberInput value={deliveryCost} onChange={setDeliveryCost} min={0} step={100} suffix="грн" /></Row>
+              </TwoCol>
+            </div>
+          </div>
+        </div>
+
+        {/* Result */}
+        {hasAnyItem&&(<div style={S.result}>
+          <div style={S.statsRow}>
+            {b1.enabled&&b1Pallets>0&&<Stat label={`${b1.type} ${b1SafeW}мм`} value={`${b1M3} м³`} />}
+            {b2.enabled&&b2Pallets>0&&<Stat label={`${b2.type} ${b2SafeW}мм`} value={`${b2M3} м³`} />}
+            {b1.enabled&&b1Pallets>0&&b2.enabled&&b2Pallets>0&&<Stat label="Разом ГБ" value={`${+((b1M3)+(b2M3)).toFixed(3)} м³`} />}
+            {ub.enabled&&ubQty>0&&<Stat label="U-блок" value={`${ubQty} шт`} />}
+            {adh.enabled&&adhQty>0&&<Stat label="Клей" value={`${adhQty} ${declBag(adhQty)}`} />}
+            <Stat label="Разом (роздріб)" value={`${fmt(fullTotalRounded)} грн`} accent />
+          </div>
+          <ResultBlock label="📦 Газобетон з доставкою" amount={fmt(fullTotalRounded)} text={fullText} color="#2563a8" onCopy={()=>doCopyText(fullText,setCopied0)} copied={copied0} onSave={()=>doSave("full",fullText,fullTotalRounded,setSaved0)} saved={saved0} />
+          <div style={S.hr} />
+          {hasBlocks&&(<><ResultBlock label="📦 Газобетон" amount={fmt(wholesaleBlockCost)} text={blockText} color="#2563a8" onCopy={()=>doCopyText(blockText,setCopied1)} copied={copied1} onSave={()=>doSave("block",blockText,Math.round(wholesaleBlockCost),setSaved1)} saved={saved1} /><div style={S.hr} /></>)}
+          {hasAdhOrDel&&(<ResultBlock label="🧴 Клей + доставка" amount={fmt(adhDeliveryTotal)} text={adhText} color="#2563a8" onCopy={()=>doCopyText(adhText,setCopied2)} copied={copied2} onSave={()=>doSave("adh",adhText,Math.round(adhDeliveryTotal),setSaved2)} saved={saved2} />)}
+        </div>)}
+
+        {/* History */}
+        {history.length>0&&(<div style={S.historyCard}>
+          <div style={S.historyHeader}>
+            <span>📋 Записи замовлень</span>
+            {clearConfirm?(
+              <span style={{display:"flex",gap:8,alignItems:"center"}}>
+                <span style={{fontSize:12,color:"#ef4444"}}>Очистити всі?</span>
+                <button onClick={()=>{saveHistory([]);setClearConfirm(false);}} style={{...S.clearBtn,background:"#ef4444"}}>Так</button>
+                <button onClick={()=>setClearConfirm(false)} style={{...S.clearBtn,background:"#6b7280"}}>Ні</button>
+              </span>
+            ):<button onClick={()=>setClearConfirm(true)} style={S.clearBtn}>Очистити</button>}
+          </div>
+          {history.map(entry=>(
+            <div key={entry.id} style={S.historyEntry}>
+              <div style={S.historyEntryMeta}>
+                <span style={S.historyTag(entry.label)}>{entry.label==="full"?"📦 Газобетон з дост.":entry.label==="block"?"📦 Газобетон":"🧴 Клей+дост."}</span>
+                <span style={{fontSize:11,color:"#9ca3af"}}>{entry.ts}</span>
+                <span style={{fontWeight:700,color:"#1a3a5c",fontSize:13}}>{fmt(entry.amount)} грн</span>
+                <button onClick={()=>saveHistory(history.filter(h=>h.id!==entry.id))} style={{marginLeft:"auto",fontSize:11,padding:"2px 8px",borderRadius:5,border:"1px solid #fca5a5",background:"#fff0f0",color:"#ef4444",cursor:"pointer"}}>✕</button>
+              </div>
+              <div style={S.historyText}>{entry.text}</div>
+              <HistoryCopyBtn text={entry.text} />
+            </div>
+          ))}
+        </div>)}
+
+        {/* Profit */}
+        {lastSaved.full&&lastSaved.block&&lastSaved.adh&&(()=>{
+          const td=lastSaved.full.amount-lastSaved.adh.amount,ea=td-lastSaved.block.amount;
+          return(<div style={S.profitSection}><div style={S.profitBox}>
+            <div style={S.profitTitle}>💰 Підсумок по останньому замовленню</div>
+            <div style={S.profitRow}><span>Саші віддати:</span><span style={S.profitAmt}>{fmt(td)} грн</span></div>
+            <div style={S.profitRow}><span>Заробив:</span><span style={{...S.profitAmt,color:ea>=0?"#4ade80":"#f87171"}}>{fmt(ea)} грн</span></div>
+          </div></div>);
+        })()}
+
+        {/* Для мене + Для перевізника */}
+        {hasAnyItem&&(<div style={S.result2}>
+          <ResultBlock label="📋 Для мене" amount={fmt(histToDealer)} text={dealerText} color="#0f766e" onCopy={()=>doCopyText(dealerText,setCopied3)} copied={copied3} noSave />
+          <div style={S.hr} />
+          <ResultBlock label="🚛 Для перевізника" amount={fmt(adhDeliveryTotal)} text={carrierText} color="#0f766e" onCopy={()=>doCopyText(carrierText,setCopied4)} copied={copied4} noSave />
+        </div>)}
+
+      </div>
+    </div>
+  );
+}
+
+// ── Sub-components ────────────────────────────────────────────────────────────
+function HistoryCopyBtn({text}){
+  const [copied,setCopied]=useState(false);
+  const handle=()=>{const done=()=>{setCopied(true);setTimeout(()=>setCopied(false),2000);};doCopyText(text,setCopied);};
+  return(<button onClick={handle} style={{display:"block",width:"100%",marginTop:8,padding:"10px 16px",borderRadius:8,border:"none",background:copied?"#22c55e":"#2563a8",color:"#fff",fontSize:14,fontWeight:600,cursor:"pointer"}}>{copied?"✓ Скопійовано!":"Копіювати"}</button>);
+}
+
+function ResultBlock({label,amount,text,color,onCopy,copied,onSave,saved,noSave}){
+  return(<div style={{marginBottom:4}}>
+    <div style={{fontSize:11,fontWeight:700,color:"#93c5fd",textTransform:"uppercase",letterSpacing:1,marginBottom:6,marginTop:2}}>{label} · <span style={{color:"#fff"}}>{amount} грн</span></div>
+    <div style={{background:"rgba(255,255,255,0.07)",borderRadius:9,padding:"14px 16px",fontFamily:"monospace",fontSize:13,lineHeight:1.7,whiteSpace:"pre-wrap",color:"#cfe3ff",marginBottom:8}}>{text}</div>
+    <div style={{display:"flex",gap:8,marginBottom:12}}>
+      <button onClick={onCopy} style={{flex:1,color:"#fff",border:"none",borderRadius:8,padding:"10px 16px",fontSize:13,fontWeight:600,cursor:"pointer",background:copied?"#22c55e":color}}>{copied?"✓ Скопійовано!":"Копіювати"}</button>
+      {!noSave&&<button onClick={onSave} style={{flex:1,color:"#fff",border:"none",borderRadius:8,padding:"10px 16px",fontSize:13,fontWeight:600,cursor:"pointer",background:saved?"#22c55e":"#0f766e"}}>{saved?"✓ Записано!":"Записати"}</button>}
+    </div>
+  </div>);
+}
+
+function PriceOverride({value,onChange,placeholder}){
+  return(<div style={{display:"flex",alignItems:"center",gap:6}}>
+    <input type="number" value={value} onChange={e=>onChange(e.target.value)} placeholder={placeholder} min={0} step={10} style={{...styles.input,flex:1,borderColor:value?"#2563a8":"#d1d5db"}} />
+    <span style={{fontSize:12,color:"#6b7280",whiteSpace:"nowrap"}}>грн</span>
+    {value&&<button onClick={()=>onChange("")} style={{padding:"3px 6px",fontSize:11,borderRadius:5,border:"1px solid #d1d5db",background:"#f3f4f6",cursor:"pointer"}}>↺</button>}
+  </div>);
+}
+function VcBox({title,widths,width,onWidth,m3input,onM3,m3perPallet,pallets,exactM3}){
+  return(<div style={{background:"#f8faff",border:"1.5px solid #bdd4f5",borderRadius:10,padding:"14px 16px",marginBottom:16}}>
+    <div style={{fontSize:12,fontWeight:700,color:"#2563a8",marginBottom:10,textTransform:"uppercase",letterSpacing:0.5}}>🧮 {title}</div>
+    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+      <Row label="Ширина блоку (мм)"><Select value={width} onChange={onWidth} options={widths.map(w=>({value:String(w),label:`${w} мм`}))} /></Row>
+      <Row label="Потрібно, м³"><NumberInput value={m3input} onChange={onM3} min={0} step={0.5} suffix="м³" /></Row>
+    </div>
+    {m3perPallet&&parseFloat(m3input)>0&&(<div style={{marginTop:8,fontSize:12,color:"#1a3a5c",background:"#e0edff",borderRadius:6,padding:"7px 10px",display:"flex",gap:16,flexWrap:"wrap"}}>
+      <span>📦 {m3perPallet} м³/піддон</span><span>→ <strong>{pallets} {declPallet(pallets)}</strong></span><span>→ точно <strong>{exactM3} м³</strong></span>
+    </div>)}
+  </div>);
+}
+function SectionHeader({title,tag,enabled,onToggle,alwaysOn}){
+  return(<div style={{display:"flex",alignItems:"center",gap:10,marginBottom:enabled?12:0}}>
+    <div style={{width:26,height:26,borderRadius:"50%",background:enabled?"#2563a8":"#d1d5db",color:"#fff",fontSize:12,fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>{tag}</div>
+    <span style={{fontWeight:700,fontSize:15,color:"#1a3a5c",flex:1}}>{title}</span>
+    {!alwaysOn&&(<div style={{display:"flex",alignItems:"center",gap:6}}>
+      <div style={{width:40,height:22,borderRadius:11,background:enabled?"#2563a8":"#d1d5db",position:"relative",cursor:"pointer"}} onClick={()=>onToggle(!enabled)}>
+        <div style={{position:"absolute",top:3,left:enabled?21:3,width:16,height:16,borderRadius:"50%",background:"#fff",transition:"left 0.2s"}} />
+      </div>
+      <span style={{fontSize:12,color:"#6b7280"}}>{enabled?"Так":"Ні"}</span>
+    </div>)}
+  </div>);
+}
+function CalcHint({children}){return <div style={{fontSize:12,color:"#2563a8",background:"#eff6ff",borderRadius:6,padding:"6px 10px",marginTop:6,marginBottom:4}}>{children}</div>;}
+function TwoCol({children}){return <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>{children}</div>;}
+function Divider(){return <div style={{height:1,background:"#e5e7eb",margin:"18px 0"}} />;}
+function Row({label,children}){return <div style={{marginBottom:14}}><label style={{display:"block",fontSize:12,fontWeight:600,color:"#374151",marginBottom:5}}>{label}</label>{children}</div>;}
+function Select({value,onChange,options}){return <select value={value} onChange={e=>onChange(e.target.value)} style={styles.input}>{options.map(o=><option key={o.value} value={o.value}>{o.label}</option>)}</select>;}
+function NumberInput({value,onChange,min,step,suffix}){return <div style={{display:"flex",alignItems:"center",gap:6}}><input type="number" value={value} min={min} step={step} onChange={e=>onChange(e.target.value)} style={{...styles.input,flex:1}} /><span style={{fontSize:12,color:"#6b7280",whiteSpace:"nowrap"}}>{suffix}</span></div>;}
+function TextInput({value,onChange,placeholder}){return <input type="text" value={value} placeholder={placeholder} onChange={e=>onChange(e.target.value)} style={{...styles.input,width:"100%",boxSizing:"border-box"}} />;}
+function Stat({label,value,accent}){return <div style={{minWidth:70}}><div style={{fontSize:10,opacity:0.55,textTransform:"uppercase",letterSpacing:1,marginBottom:2}}>{label}</div><div style={{fontSize:accent?18:14,fontWeight:700,color:accent?"#7dd3fc":"#fff"}}>{value}</div></div>;}
+
+const styles={
+  page:{minHeight:"100vh",background:"#f0f4f8",fontFamily:"'Segoe UI',Arial,sans-serif",display:"flex",alignItems:"flex-start",justifyContent:"center",padding:"16px 12px 40px"},
+  card:{width:"100%",maxWidth:620},
+  header:{background:"linear-gradient(135deg,#1a3a5c 0%,#2563a8 100%)",borderRadius:"16px 16px 0 0",padding:"22px 20px 18px",color:"#fff"},
+  headerLabel:{fontSize:11,letterSpacing:2,textTransform:"uppercase",opacity:0.65,marginBottom:6},
+  headerTitle:{fontSize:20,fontWeight:700,lineHeight:1.2},
+  headerSub:{fontSize:12,opacity:0.55,marginTop:5},
+  form:{background:"#fff",padding:"20px 16px",boxShadow:"0 4px 24px rgba(0,0,0,0.08)"},
+  sectionTitle:{fontWeight:700,fontSize:15,color:"#1a3a5c",marginBottom:12},
+  sb:{paddingLeft:36},
+  priceInfoRow:{display:"flex",gap:14,fontSize:12,color:"#374151",background:"#f8faff",border:"1px solid #e0edff",borderRadius:7,padding:"7px 12px",marginBottom:12,flexWrap:"wrap"},
+  result:{background:"#1a3a5c",padding:"20px 16px",color:"#fff"},
+  result2:{background:"#1a3a5c",borderRadius:"0 0 16px 16px",padding:"20px 16px",color:"#fff"},
+  profitSection:{background:"#1a3a5c",padding:"0 16px 20px"},
+  statsRow:{display:"flex",gap:12,marginBottom:16,flexWrap:"wrap"},
+  historyCard:{background:"#fff",padding:"18px 16px",boxShadow:"0 4px 24px rgba(0,0,0,0.08)"},
+  historyHeader:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14,fontWeight:700,fontSize:14,color:"#1a3a5c"},
+  historyEntry:{borderBottom:"1px solid #f0f4f8",paddingBottom:12,marginBottom:12},
+  historyEntryMeta:{display:"flex",alignItems:"center",gap:8,marginBottom:6,flexWrap:"wrap"},
+  historyTag:(l)=>({fontSize:11,fontWeight:700,padding:"2px 8px",borderRadius:10,background:l==="full"?"#dbeafe":l==="block"?"#dcfce7":"#fef9c3",color:l==="full"?"#1e40af":l==="block"?"#166534":"#854d0e"}),
+  historyText:{fontSize:11,fontFamily:"monospace",color:"#6b7280",whiteSpace:"pre-wrap",background:"#f8faff",borderRadius:6,padding:"8px 10px",lineHeight:1.6},
+  profitBox:{background:"rgba(255,255,255,0.08)",borderRadius:10,padding:"14px 16px",color:"#fff"},
+  profitTitle:{fontSize:13,fontWeight:700,color:"#7dd3fc",marginBottom:10},
+  profitRow:{display:"flex",justifyContent:"space-between",alignItems:"baseline",gap:8,marginBottom:6,flexWrap:"wrap"},
+  profitAmt:{fontSize:18,fontWeight:700,color:"#7dd3fc"},
+  clearBtn:{fontSize:12,padding:"4px 12px",borderRadius:6,border:"none",background:"#ef4444",color:"#fff",cursor:"pointer"},
+  hr:{height:1,background:"rgba(255,255,255,0.12)",margin:"16px 0"},
+  input:{padding:"9px 10px",borderRadius:7,border:"1.5px solid #d1d5db",fontSize:14,color:"#111",background:"#fff",cursor:"pointer",outline:"none",width:"100%"},
+};
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+</script>
+
+<!-- Service Worker for offline -->
+<script>
+if ('serviceWorker' in navigator) {
+  const swCode = `
+    const CACHE = 'poriston-v1';
+    const ASSETS = ['./', './index.html'];
+    self.addEventListener('install', e => e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)).then(() => self.skipWaiting())));
+    self.addEventListener('activate', e => e.waitUntil(self.clients.claim()));
+    self.addEventListener('fetch', e => {
+      e.respondWith(caches.match(e.request).then(r => r || fetch(e.request).catch(() => caches.match('./'))));
+    });
+  `;
+  const blob = new Blob([swCode], {type:'text/javascript'});
+  navigator.serviceWorker.register(URL.createObjectURL(blob)).catch(()=>{});
+}
+</script>
+</body>
+</html>
