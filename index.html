@@ -9,7 +9,6 @@
   <meta name="apple-mobile-web-app-title" content="Poriston" />
   <title>Poriston Калькулятор</title>
 
-  <!-- PWA manifest inline -->
   <script>
     const manifestData = {
       name: "Poriston Калькулятор",
@@ -34,7 +33,6 @@
     });
   </script>
 
-  <!-- React + Babel from CDN -->
   <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
   <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
@@ -43,7 +41,6 @@
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     body { background: #f0f4f8; font-family: 'Segoe UI', Arial, sans-serif; -webkit-tap-highlight-color: transparent; }
     select, input, button { font-family: inherit; }
-    /* Safe area for notched phones */
     #root { padding-bottom: env(safe-area-inset-bottom); }
   </style>
 </head>
@@ -51,7 +48,7 @@
 <div id="root"></div>
 
 <script type="text/babel">
-const { useState, useMemo, useEffect } = React;
+const { useState, useMemo } = React;
 
 // ── Data ──────────────────────────────────────────────────────────────────────
 const BLOCKS = [
@@ -88,14 +85,14 @@ const U_BLOCKS = [
   { width:300, height:250, length:500, price:220, wholesalePrice:190 },
 ];
 const ADHESIVES = [
-  { id:"shpaten", name:"Клей для піно- газоблоків SHPATEN BLOCK 25 кг/мішок", retailPrice:148, wholesalePrice:140 },
-  { id:"white",   name:"Білий теплий клей для кладки газобетону",              retailPrice:178, wholesalePrice:170 },
+  { id:"shpaten",  name:"Клей для піно- газоблоків SHPATEN BLOCK 25 кг/мішок", retailPrice:148, wholesalePrice:140 },
+  { id:"poriston", name:"Клей Poriston білий 20 кг/мішок",                     retailPrice:190, wholesalePrice:180 },
 ];
 const RETAIL_PRICE    = { D300:3180, D400:3280, D500:3280 };
 const WHOLESALE_PRICE = { D300:3080, D400:3180, D500:3180 };
 const BLOCK_TYPES      = ["D300","D400","D500"];
-const MAIN_WIDTHS      = [200,250,280,300,375,400,500];
 const PARTITION_WIDTHS = [50,75,100,125,150];
+const ALL_WIDTHS       = [50,75,100,125,150,200,250,280,300,375,400,500];
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function fmt(n){ return Math.round(n).toLocaleString("uk-UA"); }
@@ -107,7 +104,7 @@ function roundTo10(n){const units=Math.round(n)%10;const base=Math.round(n)-unit
 function fbCopy(text){const ta=document.createElement("textarea");ta.value=text;ta.style.cssText="position:fixed;opacity:0;top:0;left:0";document.body.appendChild(ta);ta.focus();ta.select();try{document.execCommand("copy");}catch{}document.body.removeChild(ta);}
 function doCopyText(text,setCopied){const done=()=>{setCopied(true);setTimeout(()=>setCopied(false),2000);};if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(text).then(done).catch(()=>{fbCopy(text);done();});}else{fbCopy(text);done();}}
 
-// ── localStorage persistence (no server needed) ───────────────────────────────
+// ── localStorage persistence ──────────────────────────────────────────────────
 const LS_KEY = "poriston_history_v1";
 function loadHistory(){try{const v=localStorage.getItem(LS_KEY);return v?JSON.parse(v):[];}catch{return [];}}
 function persistHistory(h){try{localStorage.setItem(LS_KEY,JSON.stringify(h));}catch{}}
@@ -115,8 +112,10 @@ function persistHistory(h){try{localStorage.setItem(LS_KEY,JSON.stringify(h));}c
 // ── Main App ──────────────────────────────────────────────────────────────────
 function App() {
   const [vc1,setVc1] = useState({width:"300",m3input:"35"});
+  const [vc3,setVc3] = useState({width:"300",m3input:"10"});
   const [vc2,setVc2] = useState({width:"100",m3input:"4"});
   const [b1,setB1]   = useState({enabled:true, type:"D400",width:"300",customRetail:"",customWholesale:""});
+  const [bw,setBw]   = useState({enabled:false,type:"D400",width:"300",customRetail:"",customWholesale:""});
   const [b2,setB2]   = useState({enabled:false,type:"D500",width:"100",customRetail:"",customWholesale:""});
   const [ub,setUb]   = useState({enabled:false,width:"300",height:"200",qty:"10",customRetail:"",customWholesale:""});
   const [adh,setAdh] = useState({enabled:false,adhesiveId:"shpaten",customRetail:"",customWholesale:""});
@@ -124,73 +123,81 @@ function App() {
   const [deliveryCity,setDeliveryCity] = useState("Березань - Троєщина");
   const [deliveryCost,setDeliveryCost] = useState("17500");
   const [deliveryType,setDeliveryType] = useState("маніпулятор");
-  const [history,setHistory]   = useState(()=>loadHistory());
-  const [saved0,setSaved0]     = useState(false);
-  const [saved1,setSaved1]     = useState(false);
-  const [saved2,setSaved2]     = useState(false);
-  const [copied0,setCopied0]   = useState(false);
-  const [copied1,setCopied1]   = useState(false);
-  const [copied2,setCopied2]   = useState(false);
-  const [copied3,setCopied3]   = useState(false);
-  const [copied4,setCopied4]   = useState(false);
-  const [clearConfirm,setClearConfirm] = useState(false);
+  const [rozchep,setRozchep] = useState(false);
+  const [history,setHistory] = useState(()=>loadHistory());
+  const [saved0,setSaved0]=useState(false),[saved1,setSaved1]=useState(false),[saved2,setSaved2]=useState(false);
+  const [copied0,setCopied0]=useState(false),[copied1,setCopied1]=useState(false),[copied2,setCopied2]=useState(false),[copied3,setCopied3]=useState(false),[copied4,setCopied4]=useState(false);
+  const [clearConfirm,setClearConfirm]=useState(false);
 
-  const saveHistory = (next)=>{ setHistory(next); persistHistory(next); };
+  const saveHistory=(next)=>{setHistory(next);persistHistory(next);};
 
   // VC1
-  const vc1Block   = BLOCKS.find(b=>b.type===b1.type&&b.width===Number(vc1.width));
-  const vc1M3Input = parseFloat(vc1.m3input)||0;
-  const vc1Pallets = roundPallets(vc1Block&&vc1M3Input>0?vc1M3Input/vc1Block.m3perPallet:0);
-  const vc1ExactM3 = vc1Block&&vc1Pallets>0?+(vc1Block.m3perPallet*vc1Pallets).toFixed(3):0;
+  const vc1Block=BLOCKS.find(b=>b.type===b1.type&&b.width===Number(vc1.width));
+  const vc1M3Input=parseFloat(vc1.m3input)||0;
+  const vc1Pallets=roundPallets(vc1Block&&vc1M3Input>0?vc1M3Input/vc1Block.m3perPallet:0);
+  const vc1ExactM3=vc1Block&&vc1Pallets>0?+(vc1Block.m3perPallet*vc1Pallets).toFixed(3):0;
+  // VC3 (стіновий)
+  const vc3Block=BLOCKS.find(b=>b.type===bw.type&&b.width===Number(vc3.width));
+  const vc3M3Input=parseFloat(vc3.m3input)||0;
+  const vc3Pallets=roundPallets(vc3Block&&vc3M3Input>0?vc3M3Input/vc3Block.m3perPallet:0);
+  const vc3ExactM3=vc3Block&&vc3Pallets>0?+(vc3Block.m3perPallet*vc3Pallets).toFixed(3):0;
   // VC2
-  const vc2Block   = BLOCKS.find(b=>b.type===b2.type&&b.width===Number(vc2.width));
-  const vc2M3Input = parseFloat(vc2.m3input)||0;
-  const vc2Pallets = roundPallets(vc2Block&&vc2M3Input>0?vc2M3Input/vc2Block.m3perPallet:0);
-  const vc2ExactM3 = vc2Block&&vc2Pallets>0?+(vc2Block.m3perPallet*vc2Pallets).toFixed(3):0;
+  const vc2Block=BLOCKS.find(b=>b.type===b2.type&&b.width===Number(vc2.width));
+  const vc2M3Input=parseFloat(vc2.m3input)||0;
+  const vc2Pallets=roundPallets(vc2Block&&vc2M3Input>0?vc2M3Input/vc2Block.m3perPallet:0);
+  const vc2ExactM3=vc2Block&&vc2Pallets>0?+(vc2Block.m3perPallet*vc2Pallets).toFixed(3):0;
   // Block 1
-  const b1Widths   = useMemo(()=>[...new Set(BLOCKS.filter(b=>b.type===b1.type).map(b=>b.width))].sort((a,b)=>a-b),[b1.type]);
-  const b1SafeW    = b1Widths.includes(Number(b1.width))?b1.width:String(b1Widths[0]??"");
-  const b1Block    = BLOCKS.find(b=>b.type===b1.type&&b.width===Number(b1SafeW));
-  const b1Retail   = resolvePrice(b1.customRetail,   RETAIL_PRICE[b1.type]);
-  const b1Wholesale= resolvePrice(b1.customWholesale,WHOLESALE_PRICE[b1.type]);
-  const b1M3=vc1ExactM3, b1Pallets=vc1Pallets;
+  const b1Widths=useMemo(()=>[...new Set(BLOCKS.filter(b=>b.type===b1.type).map(b=>b.width))].sort((a,b)=>a-b),[b1.type]);
+  const b1SafeW=b1Widths.includes(Number(b1.width))?b1.width:String(b1Widths[0]??"");
+  const b1Block=BLOCKS.find(b=>b.type===b1.type&&b.width===Number(b1SafeW));
+  const b1Retail=resolvePrice(b1.customRetail,RETAIL_PRICE[b1.type]);
+  const b1Wholesale=resolvePrice(b1.customWholesale,WHOLESALE_PRICE[b1.type]);
+  const b1M3=vc1ExactM3,b1Pallets=vc1Pallets;
+  // Block Wall
+  const bwWidths=useMemo(()=>[...new Set(BLOCKS.filter(b=>b.type===bw.type).map(b=>b.width))].sort((a,b)=>a-b),[bw.type]);
+  const bwSafeW=bwWidths.includes(Number(bw.width))?bw.width:String(bwWidths[0]??"");
+  const bwBlock=BLOCKS.find(b=>b.type===bw.type&&b.width===Number(bwSafeW));
+  const bwRetail=resolvePrice(bw.customRetail,RETAIL_PRICE[bw.type]);
+  const bwWholesale=resolvePrice(bw.customWholesale,WHOLESALE_PRICE[bw.type]);
+  const bwM3=vc3ExactM3,bwPallets=vc3Pallets;
   // Block 2
-  const b2Widths   = useMemo(()=>[...new Set(BLOCKS.filter(b=>b.type===b2.type).map(b=>b.width))].sort((a,b)=>a-b),[b2.type]);
-  const b2SafeW    = b2Widths.includes(Number(b2.width))?b2.width:String(b2Widths[0]??"");
-  const b2Block    = BLOCKS.find(b=>b.type===b2.type&&b.width===Number(b2SafeW));
-  const b2Retail   = resolvePrice(b2.customRetail,   RETAIL_PRICE[b2.type]);
-  const b2Wholesale= resolvePrice(b2.customWholesale,WHOLESALE_PRICE[b2.type]);
-  const b2M3=vc2ExactM3, b2Pallets=vc2Pallets;
+  const b2Widths=useMemo(()=>[...new Set(BLOCKS.filter(b=>b.type===b2.type).map(b=>b.width))].sort((a,b)=>a-b),[b2.type]);
+  const b2SafeW=b2Widths.includes(Number(b2.width))?b2.width:String(b2Widths[0]??"");
+  const b2Block=BLOCKS.find(b=>b.type===b2.type&&b.width===Number(b2SafeW));
+  const b2Retail=resolvePrice(b2.customRetail,RETAIL_PRICE[b2.type]);
+  const b2Wholesale=resolvePrice(b2.customWholesale,WHOLESALE_PRICE[b2.type]);
+  const b2M3=vc2ExactM3,b2Pallets=vc2Pallets;
   // U-block
   const ubUniqueHeights=[...new Set(U_BLOCKS.map(b=>b.height))].sort((a,b)=>a-b);
   const ubWidthsForH=[...new Set(U_BLOCKS.filter(b=>String(b.height)===ub.height).map(b=>b.width))].sort((a,b)=>a-b);
   const ubBlock=U_BLOCKS.find(b=>String(b.width)===ub.width&&String(b.height)===ub.height);
   const ubQty=parseFloat(ub.qty)||0;
-  const ubRetail   =resolvePrice(ub.customRetail,   ubBlock?.price??0);
+  const ubRetail=resolvePrice(ub.customRetail,ubBlock?.price??0);
   const ubWholesale=resolvePrice(ub.customWholesale,ubBlock?.wholesalePrice??0);
   // Adhesive
   const adhObj=ADHESIVES.find(a=>a.id===adh.adhesiveId)||ADHESIVES[0];
-  const totalBlockM3=(b1.enabled?b1M3:0)+(b2.enabled?b2M3:0);
+  const adhInBlock=adh.adhesiveId==="poriston";
+  const totalBlockM3=(b1.enabled?b1M3:0)+(bw.enabled?bwM3:0)+(b2.enabled?b2M3:0);
   const adhQtyAuto=totalBlockM3>0?Math.ceil(totalBlockM3):0;
   const adhQty=adhQtyOverride!==""?(parseFloat(adhQtyOverride)||0):adhQtyAuto;
-  const adhRetail   =resolvePrice(adh.customRetail,   adhObj.retailPrice);
+  const adhRetail=resolvePrice(adh.customRetail,adhObj.retailPrice);
   const adhWholesale=resolvePrice(adh.customWholesale,adhObj.wholesalePrice);
   // Delivery
   const deliveryCostNum=parseFloat(deliveryCost)||0;
   // Costs
-  const fullRetailBlockCost=(b1.enabled&&b1Block?b1Retail*b1M3:0)+(b2.enabled&&b2Block?b2Retail*b2M3:0)+(ub.enabled&&ubBlock?ubRetail*ubQty:0);
+  const fullRetailBlockCost=(b1.enabled&&b1Block?b1Retail*b1M3:0)+(bw.enabled&&bwBlock?bwRetail*bwM3:0)+(b2.enabled&&b2Block?b2Retail*b2M3:0)+(ub.enabled&&ubBlock?ubRetail*ubQty:0);
   const fullTotal=fullRetailBlockCost+(adh.enabled?adhRetail*adhQty:0)+deliveryCostNum;
   const fullTotalRounded=roundTo10(fullTotal);
-  const wholesaleBlockCost=(b1.enabled&&b1Block?b1Wholesale*b1M3:0)+(b2.enabled&&b2Block?b2Wholesale*b2M3:0)+(ub.enabled&&ubBlock?ubWholesale*ubQty:0);
-  const adhWholesaleCost=adh.enabled?adhWholesale*adhQty:0;
+  const adhInBlockCost=(adhInBlock&&adh.enabled)?adhWholesale*adhQty:0;
+  const wholesaleBlockCost=(b1.enabled&&b1Block?b1Wholesale*b1M3:0)+(bw.enabled&&bwBlock?bwWholesale*bwM3:0)+(b2.enabled&&b2Block?b2Wholesale*b2M3:0)+(ub.enabled&&ubBlock?ubWholesale*ubQty:0)+adhInBlockCost;
+  const adhWholesaleCost=(adh.enabled&&!adhInBlock)?adhWholesale*adhQty:0;
   const adhDeliveryTotal=adhWholesaleCost+deliveryCostNum;
   const toDealer=Math.round(fullTotalRounded)-Math.round(adhDeliveryTotal);
   const earned=toDealer-Math.round(wholesaleBlockCost);
-  const hasBlocks=(b1.enabled&&b1Pallets>0)||(b2.enabled&&b2Pallets>0)||(ub.enabled&&ubQty>0);
+  const hasBlocks=(b1.enabled&&b1Pallets>0)||(bw.enabled&&bwPallets>0)||(b2.enabled&&b2Pallets>0)||(ub.enabled&&ubQty>0);
   const hasAdhOrDel=(adh.enabled&&adhQty>0)||deliveryCostNum>0;
-  const hasAnyItem=b1.enabled||b2.enabled||ub.enabled||adh.enabled;
+  const hasAnyItem=b1.enabled||bw.enabled||b2.enabled||ub.enabled||adh.enabled;
 
-  // lastSaved & histToDealer
   const lastSaved=(()=>{
     const f=history.filter(h=>h.label==="full"),bl=history.filter(h=>h.label==="block"),ad=history.filter(h=>h.label==="adh");
     return{full:f.length?f[f.length-1]:null,block:bl.length?bl[bl.length-1]:null,adh:ad.length?ad[ad.length-1]:null};
@@ -202,55 +209,63 @@ function App() {
     const L=[];L.push("Виробник Poriston (Aeroc)");L.push("");L.push(deliveryCity);L.push("");
     let n=1;
     if(b1.enabled&&b1Block&&b1Pallets>0){L.push(`${n}). ${b1Block.width}x${b1Block.height}x${b1Block.length} мм ${b1.type} - ${b1M3} м³ або ${b1Pallets} ${declPallet(b1Pallets)}`);L.push(`- Ціна газобетонного блоку - ${fmt(b1Retail)} грн/м³`);n++;}
+    if(bw.enabled&&bwBlock&&bwPallets>0){L.push(`${n}). ${bwBlock.width}x${bwBlock.height}x${bwBlock.length} мм ${bw.type} - ${bwM3} м³ або ${bwPallets} ${declPallet(bwPallets)}`);L.push(`- Ціна газобетонного блоку - ${fmt(bwRetail)} грн/м³`);n++;}
     if(b2.enabled&&b2Block&&b2Pallets>0){L.push(`${n}). ${b2Block.width}x${b2Block.height}x${b2Block.length} мм ${b2.type} - ${b2M3} м³ або ${b2Pallets} ${declPallet(b2Pallets)}`);L.push(`- Ціна газобетонного блоку - ${fmt(b2Retail)} грн/м³`);n++;}
     if(ub.enabled&&ubBlock&&ubQty>0){L.push(`${n}). U-блок ${ubBlock.width}x${ubBlock.height}x${ubBlock.length} мм - ${ubQty} шт`);L.push(`- Ціна U-блоку - ${fmt(ubRetail)} грн/шт`);n++;}
     if(adh.enabled&&adhQty>0){L.push(`${n}). ${adhObj.name} - ${adhQty} ${declBag(adhQty)}`);L.push(`- Ціна - ${fmt(adhRetail)} грн/мішок`);}
     L.push(`Доставка - ${fmt(deliveryCostNum)} грн/рейс (${deliveryType})`);L.push("");L.push(`Разом до оплати: ${fmt(fullTotalRounded)} грн.`);
+    if(rozchep){L.push("");L.push(`*У разі необхідності розчепу, він буде коштувати +2000 грн. до доставки`);}
     return L.join("\n");
   };
   const buildBlockText=()=>{
     const L=[];L.push(deliveryCity);L.push("");let n=1;
     if(b1.enabled&&b1Block&&b1Pallets>0){L.push(`${n}). ${b1Block.width}x${b1Block.height}x${b1Block.length} мм ${b1.type} - ${b1M3} м³ або ${b1Pallets} ${declPallet(b1Pallets)}`);L.push(`- Ціна газобетонного блоку - ${fmt(b1Wholesale)} грн/м³`);n++;}
+    if(bw.enabled&&bwBlock&&bwPallets>0){L.push(`${n}). ${bwBlock.width}x${bwBlock.height}x${bwBlock.length} мм ${bw.type} - ${bwM3} м³ або ${bwPallets} ${declPallet(bwPallets)}`);L.push(`- Ціна газобетонного блоку - ${fmt(bwWholesale)} грн/м³`);n++;}
     if(b2.enabled&&b2Block&&b2Pallets>0){L.push(`${n}). ${b2Block.width}x${b2Block.height}x${b2Block.length} мм ${b2.type} - ${b2M3} м³ або ${b2Pallets} ${declPallet(b2Pallets)}`);L.push(`- Ціна газобетонного блоку - ${fmt(b2Wholesale)} грн/м³`);n++;}
-    if(ub.enabled&&ubBlock&&ubQty>0){L.push(`${n}). U-блок ${ubBlock.width}x${ubBlock.height}x${ubBlock.length} мм - ${ubQty} шт`);L.push(`- Ціна U-блоку - ${fmt(ubWholesale)} грн/шт`);}
+    if(ub.enabled&&ubBlock&&ubQty>0){L.push(`${n}). U-блок ${ubBlock.width}x${ubBlock.height}x${ubBlock.length} мм - ${ubQty} шт`);L.push(`- Ціна U-блоку - ${fmt(ubWholesale)} грн/шт`);n++;}
+    if(adhInBlock&&adh.enabled&&adhQty>0){L.push(`${n}). ${adhObj.name} - ${adhQty} ${declBag(adhQty)}`);L.push(`- Ціна - ${fmt(adhWholesale)} грн/мішок`);}
     L.push("");L.push(`Разом до оплати: ${fmt(wholesaleBlockCost)} грн.`);
     return L.join("\n");
   };
   const buildAdhText=()=>{
     const L=[];L.push(deliveryCity);L.push("");
-    if(adh.enabled&&adhQty>0){const s=Math.round(adhWholesale*adhQty);L.push(`${adhObj.name} - ${adhQty} ${declBag(adhQty)}`);L.push(`- Ціна - ${fmt(adhWholesale)} грн/мішок. Сума за клей: ${fmt(s)} грн`);}
+    if(adh.enabled&&adhQty>0&&!adhInBlock){const s=Math.round(adhWholesale*adhQty);L.push(`${adhObj.name} - ${adhQty} ${declBag(adhQty)}`);L.push(`- Ціна - ${fmt(adhWholesale)} грн/мішок. Сума за клей: ${fmt(s)} грн`);}
     L.push(`Доставка - ${fmt(deliveryCostNum)} грн/рейс (${deliveryType})`);L.push("");L.push(`Разом до оплати: ${fmt(adhDeliveryTotal)} грн.`);
     return L.join("\n");
   };
   const buildDealerText=()=>{
     const L=[];L.push(deliveryCity);L.push("");let n=1;
     if(b1.enabled&&b1Block&&b1Pallets>0){L.push(`${n}). ${b1Block.width}x${b1Block.height}x${b1Block.length} мм ${b1.type} - ${b1M3} м³ або ${b1Pallets} ${declPallet(b1Pallets)}`);n++;}
+    if(bw.enabled&&bwBlock&&bwPallets>0){L.push(`${n}). ${bwBlock.width}x${bwBlock.height}x${bwBlock.length} мм ${bw.type} - ${bwM3} м³ або ${bwPallets} ${declPallet(bwPallets)}`);n++;}
     if(b2.enabled&&b2Block&&b2Pallets>0){L.push(`${n}). ${b2Block.width}x${b2Block.height}x${b2Block.length} мм ${b2.type} - ${b2M3} м³ або ${b2Pallets} ${declPallet(b2Pallets)}`);n++;}
-    if(ub.enabled&&ubBlock&&ubQty>0){L.push(`${n}). U-блок ${ubBlock.width}x${ubBlock.height}x${ubBlock.length} мм - ${ubQty} шт`);}
+    if(ub.enabled&&ubBlock&&ubQty>0){L.push(`${n}). U-блок ${ubBlock.width}x${ubBlock.height}x${ubBlock.length} мм - ${ubQty} шт`);n++;}
+    if(adhInBlock&&adh.enabled&&adhQty>0){L.push(`${n}). ${adhObj.name} - ${adhQty} ${declBag(adhQty)}`);}
     L.push("");L.push(`Разом до оплати: ${fmt(histToDealer)} грн.`);
     return L.join("\n");
   };
   const buildCarrierText=()=>{
     const L=[];L.push(deliveryCity);L.push("");
-    if(adh.enabled&&adhQty>0){const s=Math.round(adhWholesale*adhQty);L.push(`${adhObj.name} - ${adhQty} ${declBag(adhQty)}`);L.push(`- Ціна - ${fmt(adhWholesale)} грн/мішок. Сума за клей: ${fmt(s)} грн`);}
+    if(adh.enabled&&adhQty>0&&!adhInBlock){const s=Math.round(adhWholesale*adhQty);L.push(`${adhObj.name} - ${adhQty} ${declBag(adhQty)}`);L.push(`- Ціна - ${fmt(adhWholesale)} грн/мішок. Сума за клей: ${fmt(s)} грн`);}
     L.push(`Доставка - ${fmt(deliveryCostNum)} грн/рейс (${deliveryType})`);L.push("");L.push(`Разом до оплати: ${fmt(adhDeliveryTotal)} грн.`);L.push("");L.push(`Саші віддати: ${fmt(histToDealer)} грн.`);
     return L.join("\n");
   };
   const fullText=buildFullText(),blockText=buildBlockText(),adhText=buildAdhText(),dealerText=buildDealerText(),carrierText=buildCarrierText();
 
   const timestamp=()=>new Date().toLocaleString("uk-UA",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"});
-  const doSave=async(label,text,amount,setSaved)=>{const e={id:Date.now(),ts:timestamp(),label,text,amount};saveHistory([...history,e]);setSaved(true);setTimeout(()=>setSaved(false),2000);};
+  const doSave=(label,text,amount,setSaved)=>{const e={id:Date.now(),ts:timestamp(),label,text,amount};saveHistory([...history,e]);setSaved(true);setTimeout(()=>setSaved(false),2000);};
 
   const updateB1Type=(val)=>setB1(p=>({...p,type:val,customRetail:"",customWholesale:""}));
+  const updateBwType=(val)=>setBw(p=>({...p,type:val,customRetail:"",customWholesale:""}));
   const updateB2Type=(val)=>setB2(p=>({...p,type:val,customRetail:"",customWholesale:""}));
   const updateUbHeight=(val)=>{const ws=[...new Set(U_BLOCKS.filter(b=>String(b.height)===val).map(b=>b.width))].sort((a,b)=>a-b);setUb(p=>({...p,height:val,width:ws.includes(Number(p.width))?p.width:String(ws[0]??"")}));};
 
   const S=styles;
+  const blockCount=[b1.enabled&&b1Pallets>0,bw.enabled&&bwPallets>0,b2.enabled&&b2Pallets>0].filter(Boolean).length;
+
   return (
     <div style={S.page}>
       <div style={S.card}>
 
-        {/* Header */}
         <div style={S.header}>
           <div style={S.headerLabel}>Калькулятор</div>
           <div style={S.headerTitle}>Газобетонні блоки Poriston</div>
@@ -259,11 +274,11 @@ function App() {
 
         <div style={S.form}>
           {/* VC1 */}
-          <VcBox title="Розрахунок об'єму — основний блок" widths={MAIN_WIDTHS} width={vc1.width} onWidth={v=>setVc1(p=>({...p,width:v}))} m3input={vc1.m3input} onM3={v=>setVc1(p=>({...p,m3input:v}))} m3perPallet={vc1Block?.m3perPallet} pallets={vc1Pallets} exactM3={vc1ExactM3} />
+          <VcBox title="Розрахунок об'єму — основний блок" widths={ALL_WIDTHS} width={vc1.width} onWidth={v=>setVc1(p=>({...p,width:v}))} m3input={vc1.m3input} onM3={v=>setVc1(p=>({...p,m3input:v}))} m3perPallet={vc1Block?.m3perPallet} pallets={vc1Pallets} exactM3={vc1ExactM3} />
           <Divider />
           {/* Block 1 */}
           <SectionHeader title="Блок основний" tag="1" enabled={b1.enabled} onToggle={v=>setB1(p=>({...p,enabled:v}))} alwaysOn />
-          {b1.enabled && (<div style={S.sb}>
+          {b1.enabled&&(<div style={S.sb}>
             <TwoCol>
               <Row label="Тип блоку"><Select value={b1.type} onChange={updateB1Type} options={BLOCK_TYPES.map(t=>({value:t,label:t}))} /></Row>
               <Row label="Ширина (мм)"><Select value={b1SafeW} onChange={v=>setB1(p=>({...p,width:v}))} options={b1Widths.map(w=>({value:String(w),label:`${w} мм`}))} /></Row>
@@ -276,10 +291,27 @@ function App() {
             {b1Block&&b1Pallets>0&&<CalcHint>{b1Pallets} {declPallet(b1Pallets)} × {b1Block.m3perPallet} м³ = <strong>{b1M3} м³</strong></CalcHint>}
           </div>)}
           <Divider />
+          {/* VC3 стіновий */}
+          {bw.enabled&&(<VcBox title="Розрахунок об'єму — стіновий блок" widths={ALL_WIDTHS} width={vc3.width} onWidth={v=>setVc3(p=>({...p,width:v}))} m3input={vc3.m3input} onM3={v=>setVc3(p=>({...p,m3input:v}))} m3perPallet={vc3Block?.m3perPallet} pallets={vc3Pallets} exactM3={vc3ExactM3} />)}
+          {/* Block Wall */}
+          <SectionHeader title="Блок стіновий" tag="2" enabled={bw.enabled} onToggle={v=>setBw(p=>({...p,enabled:v}))} />
+          {bw.enabled&&(<div style={S.sb}>
+            <TwoCol>
+              <Row label="Тип блоку"><Select value={bw.type} onChange={updateBwType} options={BLOCK_TYPES.map(t=>({value:t,label:t}))} /></Row>
+              <Row label="Ширина (мм)"><Select value={bwSafeW} onChange={v=>setBw(p=>({...p,width:v}))} options={bwWidths.map(w=>({value:String(w),label:`${w} мм`}))} /></Row>
+            </TwoCol>
+            <div style={S.priceInfoRow}><span>Роздріб: <strong>{fmt(RETAIL_PRICE[bw.type])} грн/м³</strong></span><span>Опт: <strong>{fmt(WHOLESALE_PRICE[bw.type])} грн/м³</strong></span></div>
+            <TwoCol>
+              <Row label="Своя роздрібна"><PriceOverride value={bw.customRetail} onChange={v=>setBw(p=>({...p,customRetail:v}))} placeholder={fmt(RETAIL_PRICE[bw.type])} /></Row>
+              <Row label="Своя оптова"><PriceOverride value={bw.customWholesale} onChange={v=>setBw(p=>({...p,customWholesale:v}))} placeholder={fmt(WHOLESALE_PRICE[bw.type])} /></Row>
+            </TwoCol>
+            {bwBlock&&bwPallets>0&&<CalcHint>{bwPallets} {declPallet(bwPallets)} × {bwBlock.m3perPallet} м³ = <strong>{bwM3} м³</strong></CalcHint>}
+          </div>)}
+          <Divider />
           {/* VC2 */}
           {b2.enabled&&(<VcBox title="Розрахунок об'єму — перегородка" widths={PARTITION_WIDTHS} width={vc2.width} onWidth={v=>setVc2(p=>({...p,width:v}))} m3input={vc2.m3input} onM3={v=>setVc2(p=>({...p,m3input:v}))} m3perPallet={vc2Block?.m3perPallet} pallets={vc2Pallets} exactM3={vc2ExactM3} />)}
           {/* Block 2 */}
-          <SectionHeader title="Блок перегородковий" tag="2" enabled={b2.enabled} onToggle={v=>setB2(p=>({...p,enabled:v}))} />
+          <SectionHeader title="Блок перегородковий" tag="3" enabled={b2.enabled} onToggle={v=>setB2(p=>({...p,enabled:v}))} />
           {b2.enabled&&(<div style={S.sb}>
             <TwoCol>
               <Row label="Тип блоку"><Select value={b2.type} onChange={updateB2Type} options={BLOCK_TYPES.map(t=>({value:t,label:t}))} /></Row>
@@ -294,7 +326,7 @@ function App() {
           </div>)}
           <Divider />
           {/* U-blocks */}
-          <SectionHeader title="U-блоки" tag="3" enabled={ub.enabled} onToggle={v=>setUb(p=>({...p,enabled:v}))} />
+          <SectionHeader title="U-блоки" tag="4" enabled={ub.enabled} onToggle={v=>setUb(p=>({...p,enabled:v}))} />
           {ub.enabled&&(<div style={S.sb}>
             <TwoCol>
               <Row label="Висота (мм)"><Select value={ub.height} onChange={updateUbHeight} options={ubUniqueHeights.map(h=>({value:String(h),label:`${h} мм`}))} /></Row>
@@ -309,7 +341,7 @@ function App() {
           </div>)}
           <Divider />
           {/* Adhesive */}
-          <SectionHeader title="Клей для кладки" tag="4" enabled={adh.enabled} onToggle={v=>setAdh(p=>({...p,enabled:v}))} />
+          <SectionHeader title="Клей для кладки" tag="5" enabled={adh.enabled} onToggle={v=>setAdh(p=>({...p,enabled:v}))} />
           {adh.enabled&&(<div style={S.sb}>
             <Row label="Вид клею"><Select value={adh.adhesiveId} onChange={v=>setAdh(p=>({...p,adhesiveId:v,customRetail:"",customWholesale:""}))} options={ADHESIVES.map(a=>({value:a.id,label:a.name}))} /></Row>
             <div style={S.priceInfoRow}><span>Роздріб: <strong>{adhObj.retailPrice} грн/міш.</strong></span><span>Опт: <strong>{adhObj.wholesalePrice} грн/міш.</strong></span></div>
@@ -336,6 +368,14 @@ function App() {
                 <Row label="Тип транспорту"><TextInput value={deliveryType} onChange={setDeliveryType} placeholder="маніпулятор" /></Row>
                 <Row label="Вартість (грн)"><NumberInput value={deliveryCost} onChange={setDeliveryCost} min={0} step={100} suffix="грн" /></Row>
               </TwoCol>
+              <div style={{display:"flex",alignItems:"center",gap:10,marginTop:4}}>
+                <div style={{width:40,height:22,borderRadius:11,background:rozchep?"#2563a8":"#d1d5db",position:"relative",cursor:"pointer"}} onClick={()=>setRozchep(!rozchep)}>
+                  <div style={{position:"absolute",top:3,left:rozchep?21:3,width:16,height:16,borderRadius:"50%",background:"#fff",transition:"left 0.2s"}} />
+                </div>
+                <span style={{fontWeight:600,fontSize:13,color:"#374151",flex:1}}>Розчеп</span>
+                <span style={{fontSize:12,color:"#6b7280"}}>{rozchep?"Так":"Ні"}</span>
+              </div>
+              {rozchep&&(<div style={{fontSize:11,color:"#9ca3af",marginTop:6}}>У відповідь «Газобетон з доставкою» додасться примітка про +2000 грн за розчеп.</div>)}
             </div>
           </div>
         </div>
@@ -344,8 +384,9 @@ function App() {
         {hasAnyItem&&(<div style={S.result}>
           <div style={S.statsRow}>
             {b1.enabled&&b1Pallets>0&&<Stat label={`${b1.type} ${b1SafeW}мм`} value={`${b1M3} м³`} />}
+            {bw.enabled&&bwPallets>0&&<Stat label={`${bw.type} ${bwSafeW}мм`} value={`${bwM3} м³`} />}
             {b2.enabled&&b2Pallets>0&&<Stat label={`${b2.type} ${b2SafeW}мм`} value={`${b2M3} м³`} />}
-            {b1.enabled&&b1Pallets>0&&b2.enabled&&b2Pallets>0&&<Stat label="Разом ГБ" value={`${+((b1M3)+(b2M3)).toFixed(3)} м³`} />}
+            {blockCount>=2&&<Stat label="Разом ГБ" value={`${+(((b1.enabled?b1M3:0)+(bw.enabled?bwM3:0)+(b2.enabled?b2M3:0))).toFixed(3)} м³`} />}
             {ub.enabled&&ubQty>0&&<Stat label="U-блок" value={`${ubQty} шт`} />}
             {adh.enabled&&adhQty>0&&<Stat label="Клей" value={`${adhQty} ${declBag(adhQty)}`} />}
             <Stat label="Разом (роздріб)" value={`${fmt(fullTotalRounded)} грн`} accent />
@@ -360,13 +401,11 @@ function App() {
         {history.length>0&&(<div style={S.historyCard}>
           <div style={S.historyHeader}>
             <span>📋 Записи замовлень</span>
-            {clearConfirm?(
-              <span style={{display:"flex",gap:8,alignItems:"center"}}>
-                <span style={{fontSize:12,color:"#ef4444"}}>Очистити всі?</span>
-                <button onClick={()=>{saveHistory([]);setClearConfirm(false);}} style={{...S.clearBtn,background:"#ef4444"}}>Так</button>
-                <button onClick={()=>setClearConfirm(false)} style={{...S.clearBtn,background:"#6b7280"}}>Ні</button>
-              </span>
-            ):<button onClick={()=>setClearConfirm(true)} style={S.clearBtn}>Очистити</button>}
+            {clearConfirm?(<span style={{display:"flex",gap:8,alignItems:"center"}}>
+              <span style={{fontSize:12,color:"#ef4444"}}>Очистити всі?</span>
+              <button onClick={()=>{saveHistory([]);setClearConfirm(false);}} style={{...S.clearBtn,background:"#ef4444"}}>Так</button>
+              <button onClick={()=>setClearConfirm(false)} style={{...S.clearBtn,background:"#6b7280"}}>Ні</button>
+            </span>):<button onClick={()=>setClearConfirm(true)} style={S.clearBtn}>Очистити</button>}
           </div>
           {history.map(entry=>(
             <div key={entry.id} style={S.historyEntry}>
@@ -407,10 +446,8 @@ function App() {
 // ── Sub-components ────────────────────────────────────────────────────────────
 function HistoryCopyBtn({text}){
   const [copied,setCopied]=useState(false);
-  const handle=()=>{const done=()=>{setCopied(true);setTimeout(()=>setCopied(false),2000);};doCopyText(text,setCopied);};
-  return(<button onClick={handle} style={{display:"block",width:"100%",marginTop:8,padding:"10px 16px",borderRadius:8,border:"none",background:copied?"#22c55e":"#2563a8",color:"#fff",fontSize:14,fontWeight:600,cursor:"pointer"}}>{copied?"✓ Скопійовано!":"Копіювати"}</button>);
+  return(<button onClick={()=>doCopyText(text,setCopied)} style={{display:"block",width:"100%",marginTop:8,padding:"10px 16px",borderRadius:8,border:"none",background:copied?"#22c55e":"#2563a8",color:"#fff",fontSize:14,fontWeight:600,cursor:"pointer"}}>{copied?"✓ Скопійовано!":"Копіювати"}</button>);
 }
-
 function ResultBlock({label,amount,text,color,onCopy,copied,onSave,saved,noSave}){
   return(<div style={{marginBottom:4}}>
     <div style={{fontSize:11,fontWeight:700,color:"#93c5fd",textTransform:"uppercase",letterSpacing:1,marginBottom:6,marginTop:2}}>{label} · <span style={{color:"#fff"}}>{amount} грн</span></div>
@@ -421,7 +458,6 @@ function ResultBlock({label,amount,text,color,onCopy,copied,onSave,saved,noSave}
     </div>
   </div>);
 }
-
 function PriceOverride({value,onChange,placeholder}){
   return(<div style={{display:"flex",alignItems:"center",gap:6}}>
     <input type="number" value={value} onChange={e=>onChange(e.target.value)} placeholder={placeholder} min={0} step={10} style={{...styles.input,flex:1,borderColor:value?"#2563a8":"#d1d5db"}} />
@@ -495,14 +531,16 @@ const styles={
 ReactDOM.createRoot(document.getElementById("root")).render(<App />);
 </script>
 
-<!-- Service Worker for offline -->
 <script>
 if ('serviceWorker' in navigator) {
   const swCode = `
-    const CACHE = 'poriston-v1';
+    const CACHE = 'poriston-v2';
     const ASSETS = ['./', './index.html'];
     self.addEventListener('install', e => e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)).then(() => self.skipWaiting())));
-    self.addEventListener('activate', e => e.waitUntil(self.clients.claim()));
+    self.addEventListener('activate', e => e.waitUntil(Promise.all([
+      caches.keys().then(keys => Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)))),
+      self.clients.claim()
+    ])));
     self.addEventListener('fetch', e => {
       e.respondWith(caches.match(e.request).then(r => r || fetch(e.request).catch(() => caches.match('./'))));
     });
