@@ -86,10 +86,10 @@ const U_BLOCKS = [
 ];
 const ADHESIVES = [
   { id:"shpaten",  name:"Клей для піно- газоблоків SHPATEN BLOCK 25 кг/мішок", retailPrice:158, wholesalePrice:150 },
-  { id:"poriston", name:"Клей Poriston білий 20 кг/мішок",                     retailPrice:190, wholesalePrice:180 },
+  { id:"poriston", name:"Клей Poriston білий 20 кг/мішок",                     retailPrice:200, wholesalePrice:190 },
 ];
-const RETAIL_PRICE    = { D300:3180, D400:3280, D500:3280 };
-const WHOLESALE_PRICE = { D300:3080, D400:3180, D500:3180 };
+const RETAIL_PRICE    = { D300:3480, D400:3560, D500:3560 };
+const WHOLESALE_PRICE = { D300:3360, D400:3460, D500:3460 };
 const BLOCK_TYPES      = ["D300","D400","D500"];
 const PARTITION_WIDTHS = [50,75,100,125,150];
 const ALL_WIDTHS       = [50,75,100,125,150,200,250,280,300,375,400,500];
@@ -120,8 +120,8 @@ function App() {
   const [ub,setUb]   = useState({enabled:false,width:"300",height:"200",qty:"10",customRetail:"",customWholesale:""});
   const [adh,setAdh] = useState({enabled:false,adhesiveId:"shpaten",customRetail:"",customWholesale:""});
   const [adhQtyOverride,setAdhQtyOverride] = useState("");
-  const [deliveryCity,setDeliveryCity] = useState("Березань - Троєщина");
-  const [deliveryCost,setDeliveryCost] = useState("17500");
+  const [deliveryCity,setDeliveryCity] = useState("Березань - Боярка");
+  const [deliveryCost,setDeliveryCost] = useState("20500");
   const [deliveryType,setDeliveryType] = useState("маніпулятор");
   const [rozchep,setRozchep] = useState(false);
   const [history,setHistory] = useState(()=>loadHistory());
